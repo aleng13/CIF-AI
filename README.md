@@ -1,4 +1,31 @@
-# CIF-AI (Customer-AI)
+<h1 align="center">CIF-AI</h1>
+
+<p align="center">
+  <em>Transforming Email Chaos Into Seamless Conversations</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/last-commit/aleng13/CIF-AI?style=flat-square" alt="Last Commit">
+  <img src="https://img.shields.io/github/languages/top/aleng13/CIF-AI?style=flat-square" alt="Top Language">
+  <img src="https://img.shields.io/github/languages/count/aleng13/CIF-AI?style=flat-square" alt="Language Count">
+</p>
+
+<p align="center">
+  <em>Built with the tools and technologies:</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white" alt="Markdown">
+  <img src="https://img.shields.io/badge/SQLAlchemy-D71F00?style=for-the-badge&logo=sqlalchemy&logoColor=white" alt="SQLAlchemy">
+  <img src="https://img.shields.io/badge/GNU%20Bash-4EAA25?style=for-the-badge&logo=gnu-bash&logoColor=white" alt="GNU Bash">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white" alt="Pytest">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white" alt="Pydantic">
+</p>
+
+<br>
 
 > **Automated Customer Support Agent with RAG & Intelligent Routing**
 
