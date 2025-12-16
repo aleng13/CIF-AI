@@ -1,29 +1,131 @@
-"""Mocked Groq client. Returns structured JSON as if from an LLM."""
-import random
+# agent/groq_client.py
 
-def analyze(email_text, context_docs):
-    # simple heuristics for demo
-    text = email_text.lower()
-    confidence = 0.95 if 'refund' in text or 'not arrived' in text or 'cancel' in text else 0.85
-    sentiment = 'negative' if 'not' in text or 'refund' in text else 'neutral'
-    department = 'billing' if 'refund' in text or 'invoice' in text else ('logistics' if 'shipping' in text or 'arrived' in text else 'technical')
-    escalate = True if confidence < 0.9 or 'refund' in text else False
-    summary = (text[:140] + '...') if len(text) > 140 else text
+import os
+import json
+from groq import Groq
+from typing import List, Dict
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+MODEL = "openai/gpt-oss-120b"   
+
+def _safe_json_parse(text: str) -> Dict:
+    """
+    Ensures the LLM output is valid JSON.
+    If parsing fails, return a low-confidence fallback.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {
+            "intent": "unknown",
+            "confidence": 0.0,
+            "sentiment": "unknown",
+            "department": "support",
+            "escalate": True,
+            "summary": "LLM output could not be parsed",
+            "suggested_action": "human_review"
+        }
+
+def analyze(email_text: str, context_docs: List[Dict]) -> Dict:
+    """
+    Analyze email for routing + escalation.
+    """
+    context_str = "\n".join(
+        f"- {d.get('text', '')}" for d in context_docs
+    )
+
+    system_prompt = """
+You are an AI customer-support triage assistant.
+
+Your task:
+1. Understand the user's issue
+2. Decide if this should be handled by AI or escalated to a human
+3. If escalation is needed, choose the correct department
+
+Return ONLY valid JSON in this exact schema:
+
+{
+  "intent": "<short label>",
+  "confidence": <float 0-1>,
+  "sentiment": "positive|neutral|negative",
+  "department": "billing|technical|logistics|sales|operations|support",
+  "escalate": true|false,
+  "summary": "<1-2 sentence internal summary>",
+  "suggested_action": "<short instruction>"
+}
+
+Rules:
+- Escalate if confidence < 0.6
+- Escalate for refunds, billing disputes, cancellations, complaints
+- Be conservative: when unsure, escalate
+"""
+
+    user_prompt = f"""
+EMAIL:
+{email_text}
+
+CONTEXT DOCUMENTS:
+{context_str}
+"""
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        temperature=0.2,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=512,
+    )
+
+    raw = response.choices[0].message.content.strip()
+    return _safe_json_parse(raw)
+
+
+def generate_reply(email_text: str, context_docs: List[Dict]) -> Dict:
+    """
+    Generate customer-facing reply.
+    """
+    context_str = "\n".join(
+        f"- {d.get('text', '')}" for d in context_docs
+    )
+
+    system_prompt = """
+You are a professional customer support agent.
+
+Write a clear, polite, and helpful email reply.
+Rules:
+- Do NOT promise refunds or actions unless stated
+- Keep tone calm and professional
+- Keep reply under 150 words
+- No internal notes
+"""
+
+    user_prompt = f"""
+CUSTOMER EMAIL:
+{email_text}
+
+REFERENCE INFO:
+{context_str}
+"""
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        temperature=0.4,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=400,
+    )
+
+    reply_text = response.choices[0].message.content.strip()
+
     return {
-        'intent': 'customer_query',
-        'confidence': confidence,
-        'sentiment': sentiment,
-        'department': department,
-        'escalate': escalate,
-        'summary': summary,
-        'suggested_action': 'escalate' if escalate else 'reply'
+        "reply_text": reply_text,
+        "summary": reply_text[:200]
     }
-
-def generate_reply(email_text, context_docs):
-    # return a polite canned reply using context docs if possible
-    if 'refund' in email_text.lower():
-        reply = """Hi — sorry to hear about this. I have started a refund process for your order and forwarded this to Billing. You will receive an update within 5–7 business days."""
-    else:
-        reply = """Hi — thanks for reaching out. We are looking into this and will get back to you shortly."""
-    summary = reply[:200]
-    return {'reply_text': reply, 'summary': summary}

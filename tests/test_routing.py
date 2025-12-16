@@ -1,3 +1,5 @@
+#Simple script to test routing decision logic - whether to reply or escalate
+
 from models import EmailEvent
 from router.decision import handle_incoming_email
 from datetime import datetime
