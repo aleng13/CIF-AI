@@ -12,13 +12,25 @@ class Conversation(Base):
 
 class Message(Base):
     __tablename__ = "messages"
+
     id = Column(Integer, primary_key=True)
-    conversation_id = Column(Integer, ForeignKey('conversations.id'),index=True,nullable=True)
-    sender = Column(String,nullable=False)
+    conversation_id = Column(
+        Integer,
+        ForeignKey("conversations.id"),
+        index=True,
+        nullable=False
+    )
+
+    role = Column(String, nullable=False)  # user | ai | human
     subject = Column(String)
-    body = Column(Text)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    mdata = Column(JSON)
+    body = Column(Text, nullable=False)    # CLEAN text only
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    mdata = Column(JSON)  # SMALL metadata only
 
 class Escalation(Base):
     __tablename__ = "escalations"

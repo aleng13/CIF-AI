@@ -60,7 +60,7 @@ Return ONLY valid JSON in this exact schema:
 
 Rules:
 - Escalate if confidence < 0.6
-- Escalate for refunds, billing disputes, cancellations, complaints
+- Escalate for refunds, billing disputes, cancellations, complaints mention the lines from the concerned polucy documents in the reply.
 - Be conservative: when unsure, escalate
 """
 
