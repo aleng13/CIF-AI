@@ -1,3 +1,4 @@
+#This is to test the working of rag pipeline.
 import os
 from groq import Groq
 
@@ -62,3 +63,4 @@ def rag_answer(user_query: str) -> str:
     )
 
     return completion.choices[0].message.content.strip()
+
