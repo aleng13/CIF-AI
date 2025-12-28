@@ -16,7 +16,7 @@ def get_or_create_conversation(external_id=None):
 
 def save_message(conversation_id, sender, subject, body, mdata=None):
     db = SessionLocal()
-    msg = Message(conversation_id=conversation_id, sender=sender, subject=subject, body=body, mdata=mdata or {})
+    msg = Message(conversation_id=conversation_id, role=sender, subject=subject, body=body, mdata=mdata or {})
     db.add(msg)
     db.commit()
     db.refresh(msg)
