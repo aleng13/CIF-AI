@@ -1,36 +1,88 @@
-"""Simple RAG mock: returns sample docs from data/sample_docs.json based on basic keyword match."""
-import json, os
+from typing import List
+from sqlalchemy import text
+from storage.db import engine  # uses your existing SQLAlchemy engine
+from rag.embeddings import embed_query
 
-DATA_PATH = os.path.join('data', 'sample_docs.json')
 
-def ensure_sample_docs():
-    if not os.path.exists('data'):
-        os.makedirs('data', exist_ok=True)
-    if not os.path.exists(DATA_PATH):
-        sample = [
-            {'id': 'doc1', 'text': 'Refund policy: refunds are issued within 5-7 business days.', 'source': 'policy'},
-            {'id': 'doc2', 'text': 'Shipping times: standard shipping 10-14 days, express 2-4 days.', 'source': 'shipping'},
-            {'id': 'doc3', 'text': 'Password reset steps: go to account settings -> reset password.', 'source': 'help'},
-        ]
-        with open(DATA_PATH, 'w', encoding='utf-8') as f:
-            json.dump(sample, f, indent=2)
+def search(query: str, top_k: int = 5):
+    """
+    RAG search entrypoint used by decision.py.
 
-def search(query, top_k=2):
-    ensure_sample_docs()
-    with open(DATA_PATH, 'r', encoding='utf-8') as f:
-        docs = json.load(f)
-    # very naive: return docs that contain any keyword from query lowercased
-    q = query.lower()
-    scored = []
-    for d in docs:
-        score = 0
-        for token in q.split():
-            if token in d['text'].lower():
-                score += 1
-        if score > 0:
-            scored.append((score, d))
-    scored.sort(reverse=True, key=lambda x: x[0])
-    if not scored:
-        # fallback: return first top_k docs
-        return docs[:top_k]
-    return [d for _, d in scored[:top_k]]
+    Returns:
+        List[Dict] with keys: text, source
+    """
+
+    query_embedding = embed_query(query)
+
+    policy_chunks = vector_search(
+        query_embedding=query_embedding,
+        sources=["policy"],
+        top_k=top_k
+    )
+    print(f"Chunks from policy: {policy_chunks[:20]}")
+    product_chunks = vector_search(
+        query_embedding=query_embedding,
+        sources=["product"],
+        top_k=top_k
+    )
+    print(f"Chunks from product: {product_chunks[:20]}")
+    docs = []
+
+    for chunk in policy_chunks:
+        docs.append({
+            "text": chunk,
+            "source": "policy"
+        })
+
+    for chunk in product_chunks:
+        docs.append({
+            "text": chunk,
+            "source": "product"
+        })
+
+    return docs
+
+def vector_search(
+    query_embedding: list[float],
+    sources: List[str],
+    top_k: int = 5
+) -> List[str]:
+    """
+    Perform vector similarity search against pgvector.
+
+    Args:
+        query_embedding: 768-dim query embedding
+        sources: list of document sources (e.g. ["policy"], ["product"], or both)
+        top_k: number of chunks to retrieve
+
+    Returns:
+        List of chunk content strings
+    """
+
+    if not query_embedding or len(query_embedding) != 768:
+        raise ValueError("query_embedding must be a 768-dim vector")
+
+    if not sources:
+        raise ValueError("sources list cannot be empty")
+
+    sql = text("""
+        SELECT dc.content
+        FROM document_chunks dc
+        JOIN documents d ON dc.document_id = d.id
+        WHERE d.is_active = true
+          AND d.source = ANY(:sources)
+        ORDER BY dc.embedding <-> (:query_embedding)::vector
+        LIMIT :top_k
+    """)
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql,
+            {
+                "query_embedding": query_embedding,
+                "sources": sources,
+                "top_k": top_k
+            }
+        ).fetchall()
+
+    return [row[0] for row in rows]
